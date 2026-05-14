@@ -1,0 +1,20 @@
+## Backend
+backend/.env
+backend/node_modules/
+backend/uploads/
+
+## iOS / Xcode
+*.xcuserdata/
+xcuserdata/
+DerivedData/
+*.xcworkspace/xcuserdata/
+*.xccheckout
+*.moved-aside
+*.pbxuser
+*.perspectivev3
+.DS_Store
+*.hmap
+*.ipa
+*.dSYM.zip
+*.dSYM
+Pods/
