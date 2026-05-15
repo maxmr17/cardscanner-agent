@@ -132,8 +132,25 @@ struct CardIdentification: Codable {
     }
 }
 
-struct ScanResult: Codable {
+struct ScanResult: Codable, Identifiable {
     let item: CollectionItem
     let card: Card?
     let identification: CardIdentification
+
+    // Identifiable conformance uses the collection item's server-assigned ID.
+    var id: String { item.id }
+}
+
+/// Pairs an API ScanResult with the locally perspective-corrected UIImage that was sent,
+/// so the result sheet can display the card immediately without a network round-trip.
+struct ScanSession: Identifiable {
+    let id: String
+    let result: ScanResult
+    let capturedImage: UIImage?
+
+    init(result: ScanResult, capturedImage: UIImage?) {
+        self.id             = result.id
+        self.result         = result
+        self.capturedImage  = capturedImage
+    }
 }
