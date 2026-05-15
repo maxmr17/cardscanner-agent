@@ -15,14 +15,17 @@ async function authenticate(req, res, next) {
     return res.status(401).json({ error: 'Invalid or expired token' });
   }
 
-  const { rows } = await db.query(
-    'SELECT id, email, username, display_name, avatar_url, is_public FROM users WHERE id = $1',
-    [payload.sub]
-  );
-  if (!rows.length) return res.status(401).json({ error: 'User not found' });
-
-  req.user = rows[0];
-  next();
+  try {
+    const { rows } = await db.query(
+      'SELECT id, email, username, display_name, avatar_url, is_public FROM users WHERE id = $1',
+      [payload.sub]
+    );
+    if (!rows.length) return res.status(401).json({ error: 'User not found' });
+    req.user = rows[0];
+    next();
+  } catch (err) {
+    next(err);
+  }
 }
 
 module.exports = { authenticate };
