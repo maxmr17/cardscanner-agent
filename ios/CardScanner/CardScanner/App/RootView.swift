@@ -5,7 +5,11 @@ struct RootView: View {
 
     var body: some View {
         Group {
-            if authStore.isAuthenticated {
+            if authStore.isVerifying {
+                ProgressView()
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .background(Color(.systemBackground))
+            } else if authStore.isAuthenticated {
                 MainTabView()
             } else {
                 AuthView()

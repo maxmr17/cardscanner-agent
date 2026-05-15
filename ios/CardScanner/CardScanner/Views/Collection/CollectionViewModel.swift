@@ -19,17 +19,23 @@ final class CollectionViewModel: ObservableObject {
         items = []
         isLoading = true
         Task {
-            await load()
-            await loadStats()
-            isLoading = false
+            defer { isLoading = false }
+            await withTaskGroup(of: Void.self) { group in
+                group.addTask { @MainActor in await self.load() }
+                group.addTask { @MainActor in await self.loadStats() }
+                for await _ in group { }
+            }
         }
     }
 
     func refreshAsync() async {
         page = 1
         items = []
-        await load()
-        await loadStats()
+        await withTaskGroup(of: Void.self) { group in
+            group.addTask { @MainActor in await self.load() }
+            group.addTask { @MainActor in await self.loadStats() }
+            for await _ in group { }
+        }
     }
 
     func loadMore() {

@@ -105,14 +105,13 @@ struct OtherProfileView: View {
 
     private func loadProfile() async {
         defer { isLoading = false }
-        do {
-            async let profileResult = APIService.shared.userProfile(id: userId)
-            async let collectionResult = APIService.shared.collection(page: 1)
-            profile = try await profileResult.profile
-            isFollowing = profile?.isFollowing ?? false
-            // Note: ideally load their collection separately; using own endpoint as placeholder
-            items = (try? await collectionResult.items) ?? []
-        } catch {}
+        async let profileTask = APIService.shared.userProfile(id: userId)
+        async let collectionTask = APIService.shared.collection(userId: userId)
+        if let p = try? await profileTask.profile {
+            profile = p
+            isFollowing = p.isFollowing
+        }
+        items = (try? await collectionTask)?.items ?? []
     }
 
     private func toggleFollow() async {

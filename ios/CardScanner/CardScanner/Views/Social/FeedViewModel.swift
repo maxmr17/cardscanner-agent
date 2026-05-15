@@ -33,7 +33,7 @@ final class FeedViewModel: ObservableObject {
         do {
             let response = try await APIService.shared.feed(page: page)
             if page == 1 { posts = response.posts } else { posts += response.posts }
-            hasNextPage = response.posts.count == 20
+            hasNextPage = response.hasMore
         } catch { print("Feed error:", error) }
     }
 

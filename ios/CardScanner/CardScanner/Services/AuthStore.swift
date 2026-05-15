@@ -5,23 +5,28 @@ import SwiftUI
 final class AuthStore: ObservableObject {
     @Published var currentUser: User?
     @Published var isAuthenticated = false
+    @Published var isVerifying = true
 
     private let tokenKey = "auth_token"
+    private var verifyTask: Task<Void, Never>?
 
     init() {
-        if let token = UserDefaults.standard.string(forKey: tokenKey) {
+        if let token = KeychainHelper.read(key: tokenKey) {
             APIService.shared.setToken(token)
-            Task { await verifyToken() }
+            verifyTask = Task { await verifyToken() }
+        } else {
+            isVerifying = false
         }
     }
 
     private func verifyToken() async {
+        defer { isVerifying = false }
         do {
             let wrapper = try await APIService.shared.me()
             currentUser = wrapper.user
             isAuthenticated = true
         } catch {
-            logout()
+            clearSession()
         }
     }
 
@@ -36,14 +41,21 @@ final class AuthStore: ObservableObject {
     }
 
     private func persist(_ response: AuthResponse) {
-        UserDefaults.standard.set(response.token, forKey: tokenKey)
+        KeychainHelper.save(response.token, key: tokenKey)
         APIService.shared.setToken(response.token)
         currentUser = response.user
         isAuthenticated = true
+        isVerifying = false
     }
 
     func logout() {
-        UserDefaults.standard.removeObject(forKey: tokenKey)
+        verifyTask?.cancel()
+        verifyTask = nil
+        clearSession()
+    }
+
+    private func clearSession() {
+        KeychainHelper.delete(key: tokenKey)
         APIService.shared.setToken(nil)
         currentUser = nil
         isAuthenticated = false

@@ -10,11 +10,11 @@ enum APIError: LocalizedError {
 
     var errorDescription: String? {
         switch self {
-        case .invalidURL:          return "Invalid URL"
-        case .noData:              return "No data received"
+        case .invalidURL:           return "Invalid URL"
+        case .noData:               return "No data received"
         case .decodingError(let e): return "Parsing error: \(e.localizedDescription)"
         case .serverError(let msg): return msg
-        case .unauthorized:        return "Please log in again"
+        case .unauthorized:         return "Please log in again"
         }
     }
 }
@@ -25,6 +25,8 @@ final class APIService {
     private let baseURL: String
     private var authToken: String?
 
+    private let encoder = JSONEncoder()
+
     private let decoder: JSONDecoder = {
         let d = JSONDecoder()
         d.dateDecodingStrategy = .iso8601
@@ -32,22 +34,41 @@ final class APIService {
     }()
 
     private init() {
-        // Change to your server URL — use localhost:3000 for simulator
         baseURL = Bundle.main.object(forInfoDictionaryKey: "API_BASE_URL") as? String
             ?? "http://localhost:3000"
     }
 
     func setToken(_ token: String?) { authToken = token }
 
-    // MARK: - Generic request
+    // MARK: - Generic request (returns decoded body)
 
     private func request<T: Decodable>(
         path: String,
         method: String = "GET",
         body: Encodable? = nil
     ) async throws -> T {
-        guard let url = URL(string: baseURL + path) else { throw APIError.invalidURL }
+        let req = try buildRequest(path: path, method: method, body: body)
+        let (data, response) = try await URLSession.shared.data(for: req)
+        try validate(response: response, data: data)
+        do {
+            return try decoder.decode(T.self, from: data)
+        } catch {
+            throw APIError.decodingError(error)
+        }
+    }
 
+    // MARK: - Void request (no response body — handles 204)
+
+    private func voidRequest(path: String, method: String, body: Encodable? = nil) async throws {
+        let req = try buildRequest(path: path, method: method, body: body)
+        let (data, response) = try await URLSession.shared.data(for: req)
+        try validate(response: response, data: data)
+    }
+
+    // MARK: - Helpers
+
+    private func buildRequest(path: String, method: String, body: Encodable?) throws -> URLRequest {
+        guard let url = URL(string: baseURL + path) else { throw APIError.invalidURL }
         var req = URLRequest(url: url, timeoutInterval: 30)
         req.httpMethod = method
         req.setValue("application/json", forHTTPHeaderField: "Content-Type")
@@ -55,23 +76,18 @@ final class APIService {
             req.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
         }
         if let body = body {
-            req.httpBody = try JSONEncoder().encode(body)
+            req.httpBody = try encoder.encode(body)
         }
+        return req
+    }
 
-        let (data, response) = try await URLSession.shared.data(for: req)
+    private func validate(response: URLResponse, data: Data) throws {
         guard let http = response as? HTTPURLResponse else { throw APIError.noData }
-
         if http.statusCode == 401 { throw APIError.unauthorized }
         if !(200..<300).contains(http.statusCode) {
-            let msg = (try? JSONDecoder().decode([String: String].self, from: data))?["error"]
+            let msg = (try? decoder.decode([String: String].self, from: data))?["error"]
                 ?? HTTPURLResponse.localizedString(forStatusCode: http.statusCode)
             throw APIError.serverError(msg)
-        }
-
-        do {
-            return try decoder.decode(T.self, from: data)
-        } catch {
-            throw APIError.decodingError(error)
         }
     }
 
@@ -111,19 +127,22 @@ final class APIService {
         req.httpBody = body
 
         let (data, response) = try await URLSession.shared.data(for: req)
-        guard let http = response as? HTTPURLResponse else { throw APIError.noData }
-        if http.statusCode == 401 { throw APIError.unauthorized }
-        if !(200..<300).contains(http.statusCode) {
-            let msg = (try? JSONDecoder().decode([String: String].self, from: data))?["error"] ?? "Scan failed"
-            throw APIError.serverError(msg)
+        try validate(response: response, data: data)
+        do {
+            return try decoder.decode(ScanResult.self, from: data)
+        } catch {
+            throw APIError.decodingError(error)
         }
-        return try decoder.decode(ScanResult.self, from: data)
     }
 
     // MARK: - Collection
 
     func collection(page: Int = 1, sort: String = "newest") async throws -> CollectionResponse {
         try await request(path: "/collection?page=\(page)&sort=\(sort)&limit=30")
+    }
+
+    func collection(userId: String) async throws -> OtherCollectionResponse {
+        try await request(path: "/collection/\(userId)")
     }
 
     func collectionStats() async throws -> StatsWrapper {
@@ -137,10 +156,7 @@ final class APIService {
     }
 
     func deleteItem(id: String) async throws {
-        guard let url = URL(string: baseURL + "/collection/items/\(id)") else { throw APIError.invalidURL }
-        var req = URLRequest(url: url); req.httpMethod = "DELETE"
-        if let token = authToken { req.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization") }
-        _ = try await URLSession.shared.data(for: req)
+        try await voidRequest(path: "/collection/items/\(id)", method: "DELETE")
     }
 
     // MARK: - Social
@@ -156,24 +172,15 @@ final class APIService {
     }
 
     func deletePost(id: String) async throws {
-        guard let url = URL(string: baseURL + "/social/posts/\(id)") else { throw APIError.invalidURL }
-        var req = URLRequest(url: url); req.httpMethod = "DELETE"
-        if let token = authToken { req.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization") }
-        _ = try await URLSession.shared.data(for: req)
+        try await voidRequest(path: "/social/posts/\(id)", method: "DELETE")
     }
 
     func likePost(id: String) async throws {
-        guard let url = URL(string: baseURL + "/social/posts/\(id)/like") else { throw APIError.invalidURL }
-        var req = URLRequest(url: url); req.httpMethod = "POST"
-        if let token = authToken { req.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization") }
-        _ = try await URLSession.shared.data(for: req)
+        try await voidRequest(path: "/social/posts/\(id)/like", method: "POST")
     }
 
     func unlikePost(id: String) async throws {
-        guard let url = URL(string: baseURL + "/social/posts/\(id)/like") else { throw APIError.invalidURL }
-        var req = URLRequest(url: url); req.httpMethod = "DELETE"
-        if let token = authToken { req.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization") }
-        _ = try await URLSession.shared.data(for: req)
+        try await voidRequest(path: "/social/posts/\(id)/like", method: "DELETE")
     }
 
     func comments(postId: String) async throws -> CommentsResponse {
@@ -186,17 +193,11 @@ final class APIService {
     }
 
     func followUser(id: String) async throws {
-        guard let url = URL(string: baseURL + "/social/follow/\(id)") else { throw APIError.invalidURL }
-        var req = URLRequest(url: url); req.httpMethod = "POST"
-        if let token = authToken { req.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization") }
-        _ = try await URLSession.shared.data(for: req)
+        try await voidRequest(path: "/social/follow/\(id)", method: "POST")
     }
 
     func unfollowUser(id: String) async throws {
-        guard let url = URL(string: baseURL + "/social/follow/\(id)") else { throw APIError.invalidURL }
-        var req = URLRequest(url: url); req.httpMethod = "DELETE"
-        if let token = authToken { req.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization") }
-        _ = try await URLSession.shared.data(for: req)
+        try await voidRequest(path: "/social/follow/\(id)", method: "DELETE")
     }
 
     func userProfile(id: String) async throws -> ProfileResponse {
@@ -219,13 +220,24 @@ struct UserWrapper: Decodable { let user: User }
 struct ItemWrapper: Decodable { let item: CollectionItem }
 struct PostWrapper: Decodable { let post: Post }
 struct CommentWrapper: Decodable { let comment: Comment }
-struct FeedResponse: Decodable { let posts: [Post]; let page: Int }
 struct CommentsResponse: Decodable { let comments: [Comment] }
 struct ProfileResponse: Decodable { let profile: UserProfile }
 struct UsersResponse: Decodable { let users: [User] }
 struct CollectionResponse: Decodable { let items: [CollectionItem]; let total: Int; let page: Int; let pages: Int }
+struct OtherCollectionResponse: Decodable { let owner: UserProfile; let items: [CollectionItem] }
 struct StatsWrapper: Decodable { let stats: CollectionStats }
 struct ValuationResponse: Decodable { let valuation: Valuation?; let card: Card }
+
+struct FeedResponse: Decodable {
+    let posts: [Post]
+    let page: Int
+    let hasMore: Bool
+
+    enum CodingKeys: String, CodingKey {
+        case posts, page
+        case hasMore = "has_more"
+    }
+}
 
 struct CollectionStats: Decodable {
     let totalCards: Int
