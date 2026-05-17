@@ -277,6 +277,10 @@ export class API {
     );
   }
 
+  static async getCollectionItem(id: string) {
+    return API.request<{ item: CollectionItem }>(`/collection/items/${id}`);
+  }
+
   static async updateCollectionItem(
     id: string,
     data: Partial<CollectionItem>

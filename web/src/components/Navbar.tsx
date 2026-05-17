@@ -145,11 +145,20 @@ export default function Navbar() {
             );
           })}
         </div>
-        <div className="px-3 pt-4 border-t border-gray-200 dark:border-gray-800">
-          <p className="text-xs text-gray-500 dark:text-gray-500 truncate">
-            @{user.username}
-          </p>
-        </div>
+        <Link
+          href="/profile"
+          className="flex items-center gap-2.5 px-3 pt-4 border-t border-gray-200 dark:border-gray-800 group"
+        >
+          <div className="w-7 h-7 rounded-full bg-orange-100 dark:bg-orange-900/30 flex items-center justify-center text-orange-500 text-xs font-bold flex-shrink-0 ring-2 ring-orange-200 dark:ring-orange-800 group-hover:ring-orange-400 transition-all">
+            {(user.display_name ?? user.username).charAt(0).toUpperCase()}
+          </div>
+          <div className="min-w-0">
+            <p className="text-xs font-semibold text-gray-700 dark:text-gray-300 truncate leading-none">
+              {user.display_name ?? user.username}
+            </p>
+            <p className="text-[10px] text-gray-400 truncate mt-0.5">@{user.username}</p>
+          </div>
+        </Link>
       </nav>
 
       {/* Bottom tab bar for mobile */}

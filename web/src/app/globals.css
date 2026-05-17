@@ -3,13 +3,9 @@
 @tailwind utilities;
 
 @layer base {
-  :root {
-    color-scheme: light dark;
-  }
+  :root { color-scheme: light dark; }
 
-  html {
-    -webkit-tap-highlight-color: transparent;
-  }
+  html { -webkit-tap-highlight-color: transparent; }
 
   body {
     @apply bg-gray-50 dark:bg-gray-950 text-gray-900 dark:text-gray-100;
@@ -31,8 +27,44 @@
     -ms-overflow-style: none;
     scrollbar-width: none;
   }
+  .scrollbar-hide::-webkit-scrollbar { display: none; }
 
-  .scrollbar-hide::-webkit-scrollbar {
-    display: none;
+  /* Skeleton shimmer — applied as a background gradient */
+  .skeleton {
+    background: linear-gradient(
+      90deg,
+      theme('colors.gray.200') 25%,
+      theme('colors.gray.100') 50%,
+      theme('colors.gray.200') 75%
+    );
+    background-size: 200% 100%;
+    animation: shimmer 1.6s linear infinite;
+  }
+
+  .dark .skeleton {
+    background: linear-gradient(
+      90deg,
+      theme('colors.gray.800') 25%,
+      theme('colors.gray.700') 50%,
+      theme('colors.gray.800') 75%
+    );
+    background-size: 200% 100%;
+    animation: shimmer 1.6s linear infinite;
+  }
+
+  /* Holographic overlay for rare cards */
+  .holo-overlay {
+    background: linear-gradient(
+      135deg,
+      rgba(255,80,80,0.18)  0%,
+      rgba(255,200,50,0.18) 25%,
+      rgba(80,255,120,0.18) 50%,
+      rgba(60,160,255,0.18) 75%,
+      rgba(180,80,255,0.18) 100%
+    );
+    background-size: 200% 200%;
+    animation: holo 4s ease infinite;
+    mix-blend-mode: screen;
+    pointer-events: none;
   }
 }

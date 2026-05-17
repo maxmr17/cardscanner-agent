@@ -30,6 +30,25 @@ router.get('/stats/summary', authenticate, async (req, res, next) => {
   }
 });
 
+// GET /collection/items/:id — single item with card + valuation join
+router.get('/items/:id', authenticate, async (req, res, next) => {
+  try {
+    const { rows } = await db.query(
+      `SELECT ci.*, c.player_name, c.team, c.position, c.year, c.set_name, c.variant, c.card_number,
+              v.low_price, v.mid_price, v.high_price, v.sale_count, v.fetched_at
+       FROM collection_items ci
+       LEFT JOIN cards c ON ci.card_id = c.id
+       LEFT JOIN valuations v ON v.card_id = ci.card_id
+       WHERE ci.id = $1 AND ci.user_id = $2`,
+      [req.params.id, req.user.id]
+    );
+    if (!rows.length) return res.status(404).json({ error: 'Item not found' });
+    res.json({ item: rows[0] });
+  } catch (err) {
+    next(err);
+  }
+});
+
 // PATCH /collection/items/:id
 router.patch('/items/:id', authenticate, async (req, res, next) => {
   try {
