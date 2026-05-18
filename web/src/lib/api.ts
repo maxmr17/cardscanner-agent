@@ -55,12 +55,15 @@ export interface CollectionItem {
   created_at: string;
   player_name?: string;
   team?: string;
+  position?: string;
   year?: number;
   set_name?: string;
   variant?: string;
+  card_number?: string;
   low_price?: number;
   mid_price?: number;
   high_price?: number;
+  sale_count?: number;
 }
 
 export interface Post {
