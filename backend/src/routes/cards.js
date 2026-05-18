@@ -80,7 +80,7 @@ router.post('/scan', authenticate, upload.single('image'), async (req, res, next
       upsertValuation(card).catch(err => console.error('[scan] valuation error:', err.message));
     }
 
-    res.status(201).json({ item, card, identification });
+    res.status(201).json({ item, card, identification, ...identification });
   } catch (err) {
     cleanup();
     next(err);

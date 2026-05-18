@@ -16,7 +16,7 @@ const LUMA_DELTA_MAX    = 8;
 const RARE_KEYWORDS = /prizm|refractor|gold|rainbow|superfractor|auto|patch|rookie|rpa|ssp|short print/i;
 
 function isRare(result: ScanResult) {
-  return RARE_KEYWORDS.test(result.variant ?? '') || (result.confidence > 0.88 && (result.mid_price ?? 0) > 40);
+  return RARE_KEYWORDS.test(result.variant ?? '') || (result.confidence > 0.88 && (result.item?.mid_price ?? 0) > 40);
 }
 
 function formatPrice(v?: number | null) {
